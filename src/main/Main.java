@@ -187,6 +187,28 @@ public final class Main {
                         arrayResult.add(object);
                     }
                 }
+            } else if (command.getActionType().equals("recommendation")) {
+                if (command.getType().equals("standard")) {
+                    String message = input.standard(command.getUsername());
+                    object = fileWriter.writeFile(command.getActionId(), "", message);
+                    arrayResult.add(object);
+                } else if (command.getType().equals("best_unseen")) {
+                    String message = input.bestUnseen(command.getUsername());
+                    object = fileWriter.writeFile(command.getActionId(), "", message);
+                    arrayResult.add(object);
+                } else if (command.getType().equals("popular")) {
+                    String message = input.popular(command.getUsername());
+                    object = fileWriter.writeFile(command.getActionId(), "", message);
+                    arrayResult.add(object);
+                } else if (command.getType().equals("favorite")) {
+                    String message = input.favorite(command.getUsername());
+                    object = fileWriter.writeFile(command.getActionId(), "", message);
+                    arrayResult.add(object);
+                } else {
+                    String message = input.search(command.getUsername(), command.getGenre());
+                    object = fileWriter.writeFile(command.getActionId(), "", message);
+                    arrayResult.add(object);
+                }
             }
         }
         fileWriter.closeJSON(arrayResult);

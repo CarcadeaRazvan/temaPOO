@@ -1023,4 +1023,490 @@ public final class Input {
         }
         return "Query result: " + query;
     }
+    /**
+     * Standard recommendation
+     */
+
+    public String standard(final String username) {
+        for (UserInputData user : usersData) {
+            if (user.getUsername().equals(username)) {
+                for (int i = 0; i < moviesData.size(); i++) {
+                    int cod = 0;
+                    for (String movie : user.getHistory().keySet()) {
+                        if (moviesData.get(i).getTitle().equals(movie)) {
+                            cod = 1;
+                        }
+                    }
+                    if (cod == 0) {
+                        // daca am gasit primul video nevazut din baza de date
+                        // il returnez ca recommendation
+                        return "StandardRecommendation result: " + moviesData.get(i).getTitle();
+                    }
+                }
+                for (int i = 0; i < serialsData.size(); i++) {
+                    int cod = 0;
+                    for (String movie : user.getHistory().keySet()) {
+                        if (serialsData.get(i).getTitle().equals(movie)) {
+                            cod = 1;
+                        }
+                    }
+                    if (cod == 0) {
+                        // daca am ajuns aici inseamna ca toate filmele au fost vizionate
+                        // si returnez primul serial nevazut
+                        return "StandardRecommendation result: " + serialsData.get(i).getTitle();
+                    }
+                }
+            }
+        }
+        // toate videourile din baza de date au fost vizionate
+        return "StandardRecommendation cannot be applied!";
+    }
+
+    /**
+     * Best unseen recommendation
+     */
+
+    public String bestUnseen(final String username) {
+        for (String name : userRating.keySet()) {
+            Map<String, ArrayList<Video>> videos = userRating.get(name);
+            ArrayList<ArrayList<Video>> each = new ArrayList<>();
+            Map<String, Double> videoRating = new HashMap<String, Double>();
+            // o sa calculez din nou ratingul tuturor videourilor
+            for (String video : videos.keySet()) {
+                each.add(0, videos.get(video));
+                Integer sez = videos.get(video).get(0).getNumber();
+                int seasonNumber = 0;
+                if (sez != 0) {
+                    for (int k = 0; k < serialsData.size(); k++) {
+                        if (serialsData.get(k).getTitle().equals(video)) {
+                            seasonNumber = serialsData.get(k).getNumberSeason();
+                        }
+                    }
+                }
+                for (int j = 0; j < videos.get(video).size(); j++) {
+                    videos.get(video).get(j).setSeasonNumber(seasonNumber);
+                }
+                Double sum = 0.0;
+                for (int j = 0; j < videos.get(video).size(); j++) {
+                    sum += videos.get(video).get(j).getGrade();
+                    // calculez suma tuturor ratingurilor din lista unui titlu
+                }
+                if (videos.get(video).get(0).getSeasonNumber() != 0) {
+                    // daca are numar de sezoane >0 este serial
+                    // si impart la numarul total de sezoane
+                    sum /= seasonNumber;
+                }
+                videoRating.put(video, sum);
+            }
+            eachRating.put(name, videoRating);
+        }
+        Map<String, Double> finalRating = new HashMap<String, Double>();
+        for (int i = 0; i < moviesData.size(); i++) {
+            String currentTitle = moviesData.get(i).getTitle();
+            int appearence = 0;
+            Double sum = 0.0;
+            int cod = 0;
+            for (String user : eachRating.keySet()) {
+                for (String mapTitle : eachRating.get(user).keySet()) {
+                    if (mapTitle.equals(currentTitle)) {
+                        cod = 1;
+                        appearence++;
+                        sum += eachRating.get(user).get(mapTitle);
+                    }
+                }
+            }
+            if (cod == 1) {
+                finalRating.put(currentTitle, sum / appearence);
+            }
+        }
+        for (int i = 0; i < serialsData.size(); i++) {
+            String currentTitle = serialsData.get(i).getTitle();
+            int appearence = 0;
+            Double sum = 0.0;
+            int cod = 0;
+            for (String user : eachRating.keySet()) {
+                for (String mapTitle : eachRating.get(user).keySet()) {
+                    if (mapTitle.equals(currentTitle)) {
+                        cod = 1;
+                        appearence++;
+                        sum += eachRating.get(user).get(mapTitle);
+                    }
+                }
+            }
+            if (cod == 1) {
+                finalRating.put(currentTitle, sum / appearence);
+            }
+        }
+        // sortez toate videourile descrescator dupa rating
+        Map<String, Double> sortedRatings =
+                finalRating.entrySet().stream()
+                        .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
+                        .limit(finalRating.size())
+                        .collect(Collectors.toMap(
+                                Map.Entry::getKey, Map.Entry::getValue,
+                                (e1, e2) -> e1, LinkedHashMap::new));
+        int cod = 0;
+        for (UserInputData user : usersData) {
+            if (user.getUsername().equals(username)) {
+                // caut prin map-ul sortat primul video nevazut din baza de date
+                for (String title : sortedRatings.keySet()) {
+                    cod = 0;
+                    for (String video : user.getHistory().keySet()) {
+                        if (title.equals(video)) {
+                            cod = 1;
+                        }
+                    }
+                    if (cod == 0) {
+                        // am gasit primul video nevazut
+                        return "BestRatedUnseenRecommendation result: " + title;
+                    }
+                }
+            }
+        }
+        if (cod == 1) {
+            // userul a vazut toate videourile cu rating, acum trebuie trecut prin baza de date
+            for (UserInputData user : usersData) {
+                if (user.getUsername().equals(username)) {
+                    for (int i = 0; i < moviesData.size(); i++) {
+                        int ok = 0;
+                        for (String title : user.getHistory().keySet()) {
+                            if (moviesData.get(i).getTitle().equals(title)) {
+                                ok = 1;
+                            }
+                        }
+                        if (ok == 0) {
+                            return "BestRatedUnseenRecommendation result: "
+                                    + moviesData.get(i).getTitle();
+                        }
+                    }
+                    for (int i = 0; i < serialsData.size(); i++) {
+                        int ok = 0;
+                        for (String title : user.getHistory().keySet()) {
+                            if (serialsData.get(i).getTitle().equals(title)) {
+                                ok = 1;
+                            }
+                        }
+                        if (ok == 0) {
+                            return "BestRatedUnseenRecommendation result: "
+                                    + serialsData.get(i).getTitle();
+                        }
+                    }
+                }
+            }
+        }
+        // userul a vazut toate videourile
+        return "BestRatedUnseenRecommendation cannot be applied!";
+    }
+
+    /**
+     * Popular recommendation
+     */
+
+    public String popular(final String username) {
+        Map<String, Integer> popularity = new HashMap<String, Integer>();
+        int premium = 1;
+        // verific ca utilizatorul sa fie premium
+        for (UserInputData user : usersData) {
+            if (user.getUsername().equals(username)) {
+                if (user.getSubscriptionType().equals("BASIC")) {
+                    premium = 0;
+                }
+            }
+        }
+        if (premium == 1) {
+            for (Genre genre : Genre.values()) {
+                int sum = 0;
+                // aici o sa calculez popularitatea fiecarui gen
+                // pentru fiecare video adaug la suma numarul vizionarilor videourilor
+                // din acel gen
+                for (int i = 0; i < moviesData.size(); i++) {
+                    for (String s : moviesData.get(i).getGenres()) {
+                        if (s.equalsIgnoreCase(genre.name())) {
+                            for (UserInputData user : usersData) {
+                                if (user.getHistory().containsKey(
+                                        moviesData.get(i).getTitle())) {
+                                    sum += user.getHistory().get(moviesData.get(i).getTitle());
+                                }
+                            }
+                        }
+                    }
+                }
+                // la fel si pentru seriale
+                for (int i = 0; i < serialsData.size(); i++) {
+                    for (String s : serialsData.get(i).getGenres()) {
+                        if (s.equalsIgnoreCase(genre.name())) {
+                            for (UserInputData user : usersData) {
+                                if (user.getHistory().containsKey(
+                                        serialsData.get(i).getTitle())) {
+                                    sum += user.getHistory().get(serialsData.get(i).getTitle());
+                                }
+                            }
+                        }
+                    }
+                }
+                // pun in map numarul de vizionari pentru genul curent
+                popularity.put(genre.name(), sum);
+            }
+            // sortez descrescator map-ul dupa rating
+            Map<String, Integer> sortedPopular = popularity.entrySet().stream()
+                    .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
+                    .limit(popularity.size())
+                    .collect(Collectors.toMap(
+                            Map.Entry::getKey, Map.Entry::getValue,
+                            (e1, e2) -> e1, LinkedHashMap::new));
+            for (UserInputData user : usersData) {
+                if (user.getUsername().equals(username)) {
+                    for (String s : sortedPopular.keySet()) {
+                        for (int i = 0; i < moviesData.size(); i++) {
+                            // caut primul video nevazut din genul cel mai popular
+                            for (String gen : moviesData.get(i).getGenres()) {
+                                if (gen.equalsIgnoreCase(s)) {
+                                    int cod = 0;
+                                    for (String title : user.getHistory().keySet()) {
+                                        if (title.equals(moviesData.get(i).getTitle())) {
+                                            cod = 1;
+                                        }
+                                    }
+                                    if (cod == 0) {
+                                        // am gasit primul video nevizualizat
+                                        return "PopularRecommendation result: "
+                                                + moviesData.get(i).getTitle();
+                                    }
+                                }
+                            }
+                        }
+                        // toate filmele au fost vazute, iar acum o sa caut prin seriale
+                        for (int i = 0; i < serialsData.size(); i++) {
+                            for (String gen : serialsData.get(i).getGenres()) {
+                                if (gen.equalsIgnoreCase(s)) {
+                                    int cod = 0;
+                                    for (String title : user.getHistory().keySet()) {
+                                        if (title.equals(serialsData.get(i).getTitle())) {
+                                            cod = 1;
+                                        }
+                                    }
+                                    if (cod == 0) {
+                                        return "PopularRecommendation result: "
+                                                + serialsData.get(i).getTitle();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // toate videourile din toate genurile au fost vizionate
+        return "PopularRecommendation cannot be applied!";
+    }
+
+    /**
+     * Favorite recommendation
+     */
+
+    public String favorite(final String username) {
+        Map<String, Integer> mostFavorite = new HashMap<String, Integer>();
+        int premium = 1;
+        // verific ca utilizatorul sa fie premium
+        for (UserInputData user : usersData) {
+            if (user.getUsername().equals(username)) {
+                if (user.getSubscriptionType().equals("BASIC")) {
+                    premium = 0;
+                }
+            }
+        }
+        if (premium == 1) {
+            for (UserInputData user : usersData) {
+                for (String title : user.getFavoriteMovies()) {
+                    if (mostFavorite.get(title) == null) {
+                        mostFavorite.put(title, 1);
+                    } else {
+                        // calculez de cate ori a fost adaugat la favorite fiecare video
+                        int value = mostFavorite.get(title);
+                        mostFavorite.put(title, value + 1);
+                    }
+                }
+            }
+        }
+        // sortez descrescator dupa numarul de adaugari
+        Map<String, Integer> sortedFavorite = mostFavorite.entrySet().stream()
+                .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
+                .limit(mostFavorite.size())
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey, Map.Entry::getValue,
+                        (e1, e2) -> e1, LinkedHashMap::new));
+        for (String seen : sortedFavorite.keySet()) {
+            for (UserInputData user : usersData) {
+                if (user.getUsername().equals(username)) {
+                    int cod = 0;
+                    // caut primul video nevazut de utilizator din map-ul de favorite
+                    for (String title : user.getHistory().keySet()) {
+                        if (title.equals(seen)) {
+                            cod = 1;
+                            // videoul a fost vazut
+                        }
+                    }
+                    if (cod == 0) {
+                        return "FavoriteRecommendation result: " + seen;
+                    }
+                }
+            }
+        }
+        // toate videoruile au fost vizionate de catre utilizator
+        return "FavoriteRecommendation cannot be applied!";
+    }
+
+    /**
+     * Search recommendation
+     */
+
+
+    public String search(final String username, final String genre) {
+        ArrayList<String> allTitles = new ArrayList<String>();
+        Map<String, Double> ratings = new HashMap<String, Double>();
+        // daca am un gen dat ca filtru
+        if (genre != null) {
+            // pun intr-un map toate videoruile dintr-un anumit gen
+            for (int i = 0; i < moviesData.size(); i++) {
+                for (String gen : moviesData.get(i).getGenres()) {
+                    if (gen.equals(genre)) {
+                        allTitles.add(moviesData.get(i).getTitle());
+                    }
+                }
+            }
+            for (int i = 0; i < serialsData.size(); i++) {
+                for (String gen : serialsData.get(i).getGenres()) {
+                    if (gen.equals(genre)) {
+                        allTitles.add(serialsData.get(i).getTitle());
+                    }
+                }
+            }
+            for (String title : allTitles) {
+                for (UserInputData user : usersData) {
+                    if (user.getUsername().equals(username)) {
+                        if (!user.getHistory().containsKey(title)) {
+                            ratings.put(title, 0.0);
+                            // pun in map-ul ratings toate videourile din acel gen
+                            // care sunt nevizualizate
+                        }
+                    }
+                }
+            }
+        }
+        // calculez ratingul tuturor videourilor din acel gen pentru a le putea sorta
+        for (String name : userRating.keySet()) {
+            Map<String, ArrayList<Video>> videos = userRating.get(name);
+            ArrayList<ArrayList<Video>> each = new ArrayList<>();
+            Map<String, Double> videoRating = new HashMap<String, Double>();
+            for (String video : videos.keySet()) {
+                each.add(0, videos.get(video));
+                Integer sez = videos.get(video).get(0).getNumber();
+                int seasonNumber = 0;
+                if (sez != 0) {
+                    for (int k = 0; k < serialsData.size(); k++) {
+                        if (serialsData.get(k).getTitle().equals(video)) {
+                            seasonNumber = serialsData.get(k).getNumberSeason();
+                        }
+                    }
+                }
+                for (int j = 0; j < videos.get(video).size(); j++) {
+                    videos.get(video).get(j).setSeasonNumber(seasonNumber);
+                }
+                Double sum = 0.0;
+                for (int j = 0; j < videos.get(video).size(); j++) {
+                    sum += videos.get(video).get(j).getGrade();
+                    // calculez suma tuturor ratingurilor din lista unui titlu
+                }
+                if (videos.get(video).get(0).getSeasonNumber() != 0) {
+                    // daca are numar de sezoane >0 este serial
+                    // si impart la numarul total de sezoane
+                    sum /= seasonNumber;
+                }
+                videoRating.put(video, sum);
+            }
+            eachRating.put(name, videoRating);
+        }
+        Map<String, Double> finalRating = new HashMap<String, Double>();
+        for (int i = 0; i < moviesData.size(); i++) {
+            String currentTitle = moviesData.get(i).getTitle();
+            int appearence = 0;
+            Double sum = 0.0;
+            int cod = 0;
+            for (String user : eachRating.keySet()) {
+                for (String mapTitle : eachRating.get(user).keySet()) {
+                    if (mapTitle.equals(currentTitle)) {
+                        cod = 1;
+                        appearence++;
+                        sum += eachRating.get(user).get(mapTitle);
+                    }
+                }
+            }
+            if (cod == 1) {
+                finalRating.put(currentTitle, sum / appearence);
+            }
+        }
+        for (int i = 0; i < serialsData.size(); i++) {
+            String currentTitle = serialsData.get(i).getTitle();
+            int appearence = 0;
+            Double sum = 0.0;
+            int cod = 0;
+            for (String user : eachRating.keySet()) {
+                for (String mapTitle : eachRating.get(user).keySet()) {
+                    if (mapTitle.equals(currentTitle)) {
+                        cod = 1;
+                        appearence++;
+                        sum += eachRating.get(user).get(mapTitle);
+                    }
+                }
+            }
+            if (cod == 1) {
+                finalRating.put(currentTitle, sum / appearence);
+            }
+        }
+        // fac sortarea crescatoare dupa rating si dupa nume
+        Map<String, Double> sortedAlfa =
+                finalRating.entrySet().stream()
+                        .sorted(Map.Entry.comparingByKey(Comparator.naturalOrder()))
+                        .limit(finalRating.size())
+                        .collect(Collectors.toMap(
+                                Map.Entry::getKey, Map.Entry::getValue,
+                                (e1, e2) -> e1, LinkedHashMap::new));
+        Map<String, Double> sortedRatings =
+                sortedAlfa.entrySet().stream()
+                        .sorted(Map.Entry.comparingByValue(Comparator.naturalOrder()))
+                        .limit(sortedAlfa.size())
+                        .collect(Collectors.toMap(
+                                Map.Entry::getKey, Map.Entry::getValue,
+                                (e1, e2) -> e1, LinkedHashMap::new));
+        ArrayList<String> searchResult = new ArrayList<String>();
+        for (String name : sortedRatings.keySet()) {
+            for (String title : ratings.keySet()) {
+                if (name.equals(title)) {
+                    // daca un video nu a fost vizualizat si are rating
+                    // il adaug in vectorul final
+                    searchResult.add(name);
+                }
+            }
+        }
+        if (searchResult.isEmpty()) {
+            for (String title : ratings.keySet()) {
+                // daca toate videourile au fost deja vizualizate le adaug pe cele initiale
+                searchResult.add(title);
+            }
+        }
+        if (searchResult.isEmpty()) {
+            // niciun video nu a fost gasit
+            return "SearchRecommendation cannot be applied!";
+        }
+        for (String title : ratings.keySet()) {
+            if (!searchResult.contains(title)) {
+                // adaug videourile ramase care nu au primit rating
+                searchResult.add(0, title);
+            }
+        }
+        // sortez rezultatul
+        Collections.sort(searchResult);
+        return "SearchRecommendation result: " + searchResult;
+
+    }
 }
