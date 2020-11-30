@@ -108,6 +108,85 @@ public final class Main {
                     object = fileWriter.writeFile(command.getActionId(), "", message);
                     arrayResult.add(object);
                 }
+            } else if (command.getActionType().equals("query")) {
+                if (command.getObjectType().equals("actors")) {
+                    if (command.getCriteria().equals("average")) {
+                        String message = input.average(command.getNumber(),
+                                command.getSortType());
+                        object = fileWriter.writeFile(command.getActionId(), "", message);
+                        arrayResult.add(object);
+                    } else if (command.getCriteria().equals("awards")) {
+                        final int index = 3;
+                        String message = input.awards(command.getNumber(),
+                                command.getFilters().get(index), command.getSortType());
+                        object = fileWriter.writeFile(command.getActionId(), "", message);
+                        arrayResult.add(object);
+                    } else if (command.getCriteria().equals("filter_description")) {
+                        String message = input.filterDescription(command.getFilters().get(2),
+                                command.getSortType());
+                        object = fileWriter.writeFile(command.getActionId(), "", message);
+                        arrayResult.add(object);
+                    }
+                } else if (command.getObjectType().equals("shows")) {
+                    if (command.getCriteria().equals("ratings")) {
+                        String message = input.ratingQuery(command.getNumber(),
+                                command.getSortType(), command.getObjectType(),
+                                command.getFilters().get(0), command.getFilters().get(1));
+                        object = fileWriter.writeFile(command.getActionId(), "", message);
+                        arrayResult.add(object);
+                    } else if (command.getCriteria().equals("favorite")) {
+                        String message = input.favoriteQuery(command.getNumber(),
+                                command.getSortType(), command.getObjectType(),
+                                command.getFilters().get(0), command.getFilters().get(1));
+                        object = fileWriter.writeFile(command.getActionId(), "", message);
+                        arrayResult.add(object);
+                    } else if (command.getCriteria().equals("longest")) {
+                        String message = input.longest(command.getNumber(),
+                                command.getSortType(), command.getObjectType(),
+                                command.getFilters().get(0), command.getFilters().get(1));
+                        object = fileWriter.writeFile(command.getActionId(), "", message);
+                        arrayResult.add(object);
+                    } else {
+                        String message = input.mostViewed(command.getNumber(),
+                                command.getSortType(), command.getObjectType(),
+                                command.getFilters().get(0), command.getFilters().get(1));
+                        object = fileWriter.writeFile(command.getActionId(), "", message);
+                        arrayResult.add(object);
+                    }
+                } else if (command.getObjectType().equals("movies")) {
+                    if (command.getCriteria().equals("ratings")) {
+                        String message = input.ratingQuery(command.getNumber(),
+                                command.getSortType(), command.getObjectType(),
+                                command.getFilters().get(0), command.getFilters().get(1));
+                        object = fileWriter.writeFile(command.getActionId(), "", message);
+                        arrayResult.add(object);
+                    } else if (command.getCriteria().equals("favorite")) {
+                        String message = input.favoriteQuery(command.getNumber(),
+                                command.getSortType(), command.getObjectType(),
+                                command.getFilters().get(0), command.getFilters().get(1));
+                        object = fileWriter.writeFile(command.getActionId(), "", message);
+                        arrayResult.add(object);
+                    } else if (command.getCriteria().equals("longest")) {
+                        String message = input.longest(command.getNumber(),
+                                command.getSortType(), command.getObjectType(),
+                                command.getFilters().get(0), command.getFilters().get(1));
+                        object = fileWriter.writeFile(command.getActionId(), "", message);
+                        arrayResult.add(object);
+                    } else {
+                        String message = input.mostViewed(command.getNumber(),
+                                command.getSortType(), command.getObjectType(),
+                                command.getFilters().get(0), command.getFilters().get(1));
+                        object = fileWriter.writeFile(command.getActionId(), "", message);
+                        arrayResult.add(object);
+                    }
+                } else if (command.getObjectType().equals("users")) {
+                    if (command.getCriteria().equals("num_ratings")) {
+                        String message = input.numberOfRatings(command.getNumber(),
+                                command.getSortType());
+                        object = fileWriter.writeFile(command.getActionId(), "", message);
+                        arrayResult.add(object);
+                    }
+                }
             }
         }
         fileWriter.closeJSON(arrayResult);

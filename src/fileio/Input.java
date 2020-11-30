@@ -207,4 +207,820 @@ public final class Input {
         }
         return "success -> " + title + " was rated with " + grade + " by " + username;
     }
+    private Map<String, Map<String, Double>> eachRating
+            = new HashMap<String, Map<String, Double>>();
+    // aici retin ratingul final al fiecarui video pe care utilizatorul l-a dat
+    // Map<String, Double> ratingMap = new HashMap<String, Double>();
+
+    /**
+     * Average query
+     */
+
+    public String average(final int number, final String sortType) {
+        int i = 0;
+        ArrayList<String> query = new ArrayList<String>();
+        Map<String, ArrayList<String>> castMap = new HashMap<String, ArrayList<String>>();
+        for (String name : userRating.keySet()) {
+            Map<String, ArrayList<Video>> videos = userRating.get(name);
+            ArrayList<ArrayList<Video>> each = new ArrayList<>();
+            Map<String, Double> videoRating = new HashMap<String, Double>();
+            for (String video : videos.keySet()) {
+                each.add(0, videos.get(video));
+                Integer sez = videos.get(video).get(0).getNumber();
+                // verific daca videoul este serial sau nu comparand numarul sezoanelor cu 0
+                // daca este mai mare inseamna ca este serial
+                int seasonNumber = 0;
+                if (sez != 0) {
+                    for (int k = 0; k < serialsData.size(); k++) {
+                        if (serialsData.get(k).getTitle().equals(video)) {
+                            seasonNumber = serialsData.get(k).getNumberSeason();
+                        }
+                    }
+                }
+                for (int j = 0; j < videos.get(video).size(); j++) {
+                    videos.get(video).get(j).setSeasonNumber(seasonNumber);
+                }
+                Double sum = 0.0;
+                for (int j = 0; j < videos.get(video).size(); j++) {
+                    sum += videos.get(video).get(j).getGrade();
+                    // calculez suma tuturor ratingurilor din lista unui titlu
+                }
+                if (videos.get(video).get(0).getSeasonNumber() != 0) {
+                    // daca are numar de sezoane >0 este serial
+                    // si impart la numarul total de sezoane
+                    sum /= seasonNumber;
+                }
+                videoRating.put(video, sum);
+            }
+            eachRating.put(name, videoRating);
+        }
+        Map<String, Double> finalRating = new HashMap<String, Double>();
+        for (i = 0; i < moviesData.size(); i++) {
+            String currentTitle = moviesData.get(i).getTitle();
+            int appearence = 0;
+            Double sum = 0.0;
+            int cod = 0;
+            // pentru filme calculez suma notelor date de toti userii pentru filmul respectiv
+            for (String user : eachRating.keySet()) {
+                for (String mapTitle : eachRating.get(user).keySet()) {
+                    if (mapTitle.equals(currentTitle)) {
+                        cod = 1;
+                        appearence++;
+                        sum += eachRating.get(user).get(mapTitle);
+                    }
+                }
+            }
+            if (cod == 1) {
+                castMap.put(currentTitle, moviesData.get(i).getCast());
+                finalRating.put(currentTitle, sum / appearence);
+            }
+        }
+        for (i = 0; i < serialsData.size(); i++) {
+            String currentTitle = serialsData.get(i).getTitle();
+            int appearence = 0;
+            Double sum = 0.0;
+            int cod = 0;
+            // pentru seriale calculez ce rating a dat fiecare user pentru serialul respectiv
+            // considerand sezoanele fara rating avand rating 0
+            for (String user : eachRating.keySet()) {
+                for (String mapTitle : eachRating.get(user).keySet()) {
+                    if (mapTitle.equals(currentTitle)) {
+                        cod = 1;
+                        appearence++;
+                        sum += eachRating.get(user).get(mapTitle);
+                    }
+                }
+            }
+            if (cod == 1) {
+                castMap.put(currentTitle, serialsData.get(i).getCast());
+                finalRating.put(currentTitle, sum / appearence);
+            }
+        }
+        Map<String, Double> actorMap = new HashMap<String, Double>();
+        for (i = 0; i < actorsData.size(); i++) {
+            int appearence = 0;
+            Double sum = 0.0;
+            int cod = 0;
+            // calculez media fiecarui actor din toate videourile in care a participat
+            for (String video : finalRating.keySet()) {
+                for (String name : castMap.get(video)) {
+                    if (actorsData.get(i).getName().equals(name)) {
+                        cod = 1;
+                        appearence++;
+                        sum += finalRating.get(video);
+                    }
+                }
+            }
+            // daca a aparut in vreun video ii pun ratingul total in map
+            if (cod == 1) {
+                actorMap.put(actorsData.get(i).getName(), sum / appearence);
+            }
+        }
+        // sortez in functie de sortType map-ul initial dupa rating, iar apoi dupa nume
+        Map<String, Double> firstN;
+        if (sortType.equals("desc")) {
+            Map<String, Double> sortedActors =
+                    actorMap.entrySet().stream()
+                            .sorted(Map.Entry.comparingByKey(Comparator.reverseOrder()))
+                            .limit(actorMap.size())
+                            .collect(Collectors.toMap(
+                                    Map.Entry::getKey, Map.Entry::getValue,
+                                    (e1, e2) -> e1, LinkedHashMap::new));
+            firstN =
+                    sortedActors.entrySet().stream()
+                            .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
+                            .limit(number)
+                            .collect(Collectors.toMap(
+                                    Map.Entry::getKey, Map.Entry::getValue,
+                                    (e1, e2) -> e1, LinkedHashMap::new));
+        } else {
+            Map<String, Double> sortedActors =
+                    actorMap.entrySet().stream()
+                            .sorted(Map.Entry.comparingByKey(Comparator.naturalOrder()))
+                            .limit(actorMap.size())
+                            .collect(Collectors.toMap(
+                                    Map.Entry::getKey, Map.Entry::getValue,
+                                    (e1, e2) -> e1, LinkedHashMap::new));
+            firstN =
+                    sortedActors.entrySet().stream()
+                            .sorted(Map.Entry.comparingByValue(Comparator.naturalOrder()))
+                            .limit(number)
+                            .collect(Collectors.toMap(
+                                    Map.Entry::getKey, Map.Entry::getValue,
+                                    (e1, e2) -> e1, LinkedHashMap::new));
+        }
+        for (String name : firstN.keySet()) {
+            query.add(name);
+        }
+        return "Query result: " + query.toString();
+    }
+
+    /**
+     * Awards query
+     */
+
+    public String awards(final int number, final List<String> filters,
+                         final String sortType) {
+        ArrayList<String> actors = new ArrayList<String>();
+        ArrayList<ActorsAwards> filterAwards = new ArrayList<ActorsAwards>();
+        Map<String, Integer> awardsNumber = new HashMap<String, Integer>();
+        // parcurg toti actorii si caut premiile in awards-urile fiecaruia
+        for (int i = 0; i < actorsData.size(); i++) {
+            int cod = 1;
+            int sum = 0;
+            String desctiption = null;
+            // presupun ca initial ar contine toate filtrele
+            // iar daca nu gasesc un cuvant fac cod-ul 0
+            for (String award : filters) {
+                desctiption = actorsData.get(i).getAwards().toString();
+                if (desctiption.indexOf(award) < 0) {
+                    cod = 0;
+                }
+            }
+            if (cod == 1) {
+                // inseamna ca actorul are toate awards-urile cerute si fac suma
+                // tuturor premiilor primite de actor
+                for (ActorsAwards actorAward : actorsData.get(i).getAwards().keySet()) {
+                    sum += actorsData.get(i).getAwards().get(actorAward);
+                }
+                actors.add(actorsData.get(i).getName());
+                awardsNumber.put(actorsData.get(i).getName(), sum);
+            }
+        }
+        actors.clear();
+        Map<String, Integer> sortedAwards;
+        // sortez in functie de sortType initial dupa numar, iar apoi dupa nume
+        if (sortType.equals("desc")) {
+            Map<String, Integer> sortedAlfa =
+                    awardsNumber.entrySet().stream()
+                            .sorted(Map.Entry.comparingByKey(Comparator.reverseOrder()))
+                            .limit(number)
+                            .collect(Collectors.toMap(
+                                    Map.Entry::getKey, Map.Entry::getValue,
+                                    (e1, e2) -> e1, LinkedHashMap::new));
+
+            sortedAwards =
+                    sortedAlfa.entrySet().stream()
+                            .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
+                            .limit(number)
+                            .collect(Collectors.toMap(
+                                    Map.Entry::getKey, Map.Entry::getValue,
+                                    (e1, e2) -> e1, LinkedHashMap::new));
+        } else {
+            Map<String, Integer> sortedAlfa =
+                    awardsNumber.entrySet().stream()
+                            .sorted(Map.Entry.comparingByKey(Comparator.naturalOrder()))
+                            .limit(number)
+                            .collect(Collectors.toMap(
+                                    Map.Entry::getKey, Map.Entry::getValue,
+                                    (e1, e2) -> e1, LinkedHashMap::new));
+
+            sortedAwards =
+                    sortedAlfa.entrySet().stream()
+                            .sorted(Map.Entry.comparingByValue(Comparator.naturalOrder()))
+                            .limit(number)
+                            .collect(Collectors.toMap(
+                                    Map.Entry::getKey, Map.Entry::getValue,
+                                    (e1, e2) -> e1, LinkedHashMap::new));
+        }
+        for (String s : sortedAwards.keySet()) {
+            actors.add(s);
+        }
+        return "Query result: " + actors.toString();
+    }
+
+    /**
+     * Filter Description query
+     */
+
+    public String filterDescription(final List<String> filters, final String sortType) {
+        ArrayList<String> actors = new ArrayList<String>();
+        for (int i = 0; i < actorsData.size(); i++) {
+            // parcurg toti actorii si caut in descrierea fiecaruia toate keywords-urile cerute
+            String description = actorsData.get(i).getCareerDescription();
+            int cod = 1;
+            String[] words = description.split("\\W+");
+            // sparg descrierea in cuvinte pentru a putea cauta prin ele
+            // presupun din nou ca ar contine toate cuvintele
+            for (String word : filters) {
+                int ok = 0;
+                for (int j = 0; j < words.length; j++) {
+                    if (words[j].equalsIgnoreCase(word)) {
+                        ok = 1;
+                    }
+                }
+                // daca nu gasesc un cuvant fac cod-ul 0
+                if (ok == 0) {
+                    cod = 0;
+                }
+            }
+            if (cod == 1) {
+                // daca am ajuns aici inseamna ca actorul are in descriere toate cuvintele cerute
+                actors.add(actorsData.get(i).getName());
+            }
+        }
+        Collections.sort(actors);
+        // sortez vectorul, iar daca sortType este descrescator intru pe if-ul urmator
+        if (sortType.equals("desc")) {
+            Collections.reverse(actors);
+        }
+        return "Query result: " + actors.toString();
+    }
+    private Map<String, Map<String, Double>> allRatings
+            = new HashMap<String, Map<String, Double>>();
+
+    /**
+     * Rating query
+     */
+
+    public String ratingQuery(final int number, final String sortType,
+                              final String objectType, final List<String> year,
+                              final List<String> genres) {
+        int i = 0;
+        ArrayList<String> query = new ArrayList<String>();
+        ArrayList<Video> avg = new ArrayList<Video>();
+        // aici o sa calculez din nou toate rating-urile videourilor ca la comanda rating
+        for (String name : userRating.keySet()) {
+            Map<String, ArrayList<Video>> videos = userRating.get(name);
+            ArrayList<ArrayList<Video>> each = new ArrayList<>();
+            Map<String, Double> videoRating = new HashMap<String, Double>();
+            for (String video : videos.keySet()) {
+                each.add(0, videos.get(video));
+                Integer sez = videos.get(video).get(0).getNumber();
+                int seasonNumber = 0;
+                if (sez != 0) {
+                    for (int k = 0; k < serialsData.size(); k++) {
+                        if (serialsData.get(k).getTitle().equals(video)) {
+                            seasonNumber = serialsData.get(k).getNumberSeason();
+                        }
+                    }
+                }
+                for (int j = 0; j < videos.get(video).size(); j++) {
+                    videos.get(video).get(j).setSeasonNumber(seasonNumber);
+                }
+                Double sum = 0.0;
+                for (int j = 0; j < videos.get(video).size(); j++) {
+                    sum += videos.get(video).get(j).getGrade();
+                    // calculez suma tuturor ratingurilor din lista unui titlu
+                }
+                if (videos.get(video).get(0).getSeasonNumber() != 0) {
+                    // daca are numar de sezoane >0 este serial
+                    // si impart la numarul total de sezoane
+                    sum /= seasonNumber;
+                }
+                videoRating.put(video, sum);
+            }
+            allRatings.put(name, videoRating);
+        }
+        Map<String, Double> finalMovieRating = new HashMap<String, Double>();
+        Map<String, Double> finalShowRating = new HashMap<String, Double>();
+        // calculez ratingul pe seriale si pe filme
+        if (objectType.equals("movies")) {
+            for (i = 0; i < moviesData.size(); i++) {
+                String currentTitle = moviesData.get(i).getTitle();
+                int appearence = 0;
+                Double sum = 0.0;
+                int cod = 0;
+                for (String user : allRatings.keySet()) {
+                    for (String mapTitle : allRatings.get(user).keySet()) {
+                        if (mapTitle.equals(currentTitle)) {
+                            cod = 1;
+                            appearence++;
+                            sum += allRatings.get(user).get(mapTitle);
+                        }
+                    }
+                }
+                if (year.get(0) != null) {
+                    if (Integer.parseInt(year.get(0).toString())
+                            != moviesData.get(i).getYear()) {
+                        cod = 0;
+                    }
+                }
+                for (String genre1 : genres) {
+                    int okGenre = 0;
+                    for (String genre2 : moviesData.get(i).getGenres()) {
+                        if (genre2.equals(genre1)) {
+                            okGenre = 1;
+                        }
+                    }
+                    if (okGenre == 0) {
+                        cod = 0;
+                    }
+                }
+                if (cod == 1) {
+                    finalMovieRating.put(currentTitle, sum / appearence);
+                }
+            }
+        } else {
+            for (i = 0; i < serialsData.size(); i++) {
+                String currentTitle = serialsData.get(i).getTitle();
+                int appearence = 0;
+                Double sum = 0.0;
+                int cod = 0;
+                for (String user : allRatings.keySet()) {
+                    for (String mapTitle : allRatings.get(user).keySet()) {
+                        if (mapTitle.equals(currentTitle)) {
+                            cod = 1;
+                            appearence++;
+                            sum += allRatings.get(user).get(mapTitle);
+                        }
+                    }
+                }
+                if (year.get(0) != null) {
+                    if (Integer.parseInt(year.get(0).toString())
+                            != serialsData.get(i).getYear()) {
+                        cod = 0;
+                    }
+                }
+                int okGenre = 0;
+                for (String genre1 : genres) {
+                    okGenre = 0;
+                    for (String genre2 : serialsData.get(i).getGenres()) {
+                        if (genre2.equals(genre1)) {
+                            okGenre = 1;
+                        }
+                    }
+                    if (okGenre == 0) {
+                        cod = 0;
+                    }
+                }
+                if (cod == 1) {
+                    finalShowRating.put(currentTitle, sum / appearence);
+                }
+            }
+        }
+        // daca query-ul a fost aplicat pe filme pun in query doar filmele, altfel serialele
+        if (objectType.equals("movies")) {
+            for (String title : finalMovieRating.keySet()) {
+                query.add(title);
+            }
+        } else {
+            for (String title : finalShowRating.keySet()) {
+                query.add(title);
+            }
+        }
+        Collections.sort(query);
+        if (sortType.equals("desc")) {
+            Collections.reverse(query);
+        }
+        return "Query result: " + query.toString();
+    }
+
+    /**
+     * Favorite query
+     */
+
+    public String favoriteQuery(final int number, final String sortType,
+                                final String objectType, final List<String> year,
+                                final List<String> genres) {
+        Map<String, Integer> favoriteNumber = new HashMap<String, Integer>();
+        for (UserInputData user : usersData) {
+            for (String favorite : user.getFavoriteMovies()) {
+                // calculez pentru fiecare video toate adaugarile la favorite
+                // de la toti utilizatorii
+                if (objectType.equals("movies")) {
+                    for (int i = 0; i < moviesData.size(); i++) {
+                        if (favorite.equals(moviesData.get(i).getTitle())) {
+                            int cod = 1;
+                            if (genres.get(0) != null) {
+                                for (String genre1 : genres) {
+                                    int found = 0;
+                                    for (String genre2 : moviesData.get(i).getGenres()) {
+                                        if (genre1.equals(genre2)) {
+                                            found = 1;
+                                        }
+                                    }
+                                    if (found == 0) {
+                                        cod = 0;
+                                    }
+                                }
+                            }
+                            if (year.get(0) != null) {
+                                if (Integer.parseInt(year.get(0).toString())
+                                        != moviesData.get(i).getYear()) {
+                                    cod = 0;
+                                }
+                            }
+                            if (cod == 1) {
+                                // daca am ajuns aici inseamna ca videoul respecta criteriile
+                                int num;
+                                if (favoriteNumber.get(favorite) != null) {
+                                    Integer value = favoriteNumber.get(favorite);
+                                    num = value + 1;
+                                } else {
+                                    num = 1;
+                                }
+                                favoriteNumber.put(favorite, num);
+                            }
+                        }
+                    }
+                } else {
+                    for (int i = 0; i < serialsData.size(); i++) {
+                        if (favorite.equals(serialsData.get(i).getTitle())) {
+                            int cod = 1;
+                            if (genres.get(0) != null) {
+                                for (String genre1 : genres) {
+                                    int found = 0;
+                                    for (String genre2 : serialsData.get(i).getGenres()) {
+                                        if (genre1.equals(genre2)) {
+                                            found = 1;
+                                        }
+                                    }
+                                    if (found == 0) {
+                                        cod = 0;
+                                    }
+                                }
+                            }
+                            if (year.get(0) != null) {
+                                if (Integer.parseInt(year.get(0).toString())
+                                        != serialsData.get(i).getYear()) {
+                                    cod = 0;
+                                }
+                            }
+                            if (cod == 1) {
+                                int num;
+                                if (favoriteNumber.get(favorite) != null) {
+                                    Integer value = favoriteNumber.get(favorite);
+                                    num = value + 1;
+                                } else {
+                                    num = 1;
+                                }
+                                favoriteNumber.put(favorite, num);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Map<String, Integer> sortedFavorites;
+        // sortez map-ul in functie de sortType
+        if (sortType.equals("desc")) {
+            Map<String, Integer> sortedAlfa =
+                    favoriteNumber.entrySet().stream()
+                            .sorted(Map.Entry.comparingByKey(Comparator.reverseOrder()))
+                            .limit(number)
+                            .collect(Collectors.toMap(
+                                    Map.Entry::getKey, Map.Entry::getValue,
+                                    (e1, e2) -> e1, LinkedHashMap::new));
+
+            sortedFavorites =
+                    sortedAlfa.entrySet().stream()
+                            .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
+                            .limit(number)
+                            .collect(Collectors.toMap(
+                                    Map.Entry::getKey, Map.Entry::getValue,
+                                    (e1, e2) -> e1, LinkedHashMap::new));
+        } else {
+            Map<String, Integer> sortedAlfa =
+                    favoriteNumber.entrySet().stream()
+                            .sorted(Map.Entry.comparingByKey(Comparator.naturalOrder()))
+                            .limit(number)
+                            .collect(Collectors.toMap(
+                                    Map.Entry::getKey, Map.Entry::getValue,
+                                    (e1, e2) -> e1, LinkedHashMap::new));
+
+            sortedFavorites =
+                    sortedAlfa.entrySet().stream()
+                            .sorted(Map.Entry.comparingByValue(Comparator.naturalOrder()))
+                            .limit(number)
+                            .collect(Collectors.toMap(
+                                    Map.Entry::getKey, Map.Entry::getValue,
+                                    (e1, e2) -> e1, LinkedHashMap::new));
+        }
+        ArrayList<String> query = new ArrayList<String>();
+        for (String name : sortedFavorites.keySet()) {
+            query.add(name);
+        }
+        return "Query result: " + query;
+    }
+
+    /**
+     * Longest query
+     */
+
+    public String longest(final int number, final String sortType,
+                          final String objectType, final List<String> year,
+                          final List<String> genres) {
+        Map<String, Integer> duration = new HashMap<String, Integer>();
+        if (objectType.equals("movies")) {
+            // pentru toate filmele calculez durata totala a acestora
+            for (int i = 0; i < moviesData.size(); i++) {
+                int cod = 1;
+                if (genres.get(0) != null) {
+                    for (String genre1 : genres) {
+                        int found = 0;
+                        for (String genre2 : moviesData.get(i).getGenres()) {
+                            if (genre1.equals(genre2)) {
+                                found = 1;
+                            }
+                        }
+                        if (found == 0) {
+                            cod = 0;
+                        }
+                    }
+                }
+                if (year.get(0) != null) {
+                    if (Integer.parseInt(year.get(0).toString())
+                            != moviesData.get(i).getYear()) {
+                        cod = 0;
+                    }
+                }
+                if (cod == 1) {
+                    duration.put(moviesData.get(i).getTitle(),
+                            moviesData.get(i).getDuration());
+                }
+            }
+        } else {
+            for (int i = 0; i < serialsData.size(); i++) {
+                // pentru fiecare serial calculez durata totala
+                int cod = 1;
+                if (genres.get(0) != null) {
+                    for (String genre1 : genres) {
+                        int found = 0;
+                        for (String genre2 : serialsData.get(i).getGenres()) {
+                            if (genre1.equals(genre2)) {
+                                found = 1;
+                            }
+                        }
+                        if (found == 0) {
+                            cod = 0;
+                        }
+                    }
+                }
+                if (year.get(0) != null) {
+                    if (Integer.parseInt(year.get(0).toString())
+                            != serialsData.get(i).getYear()) {
+                        cod = 0;
+                    }
+                }
+                if (cod == 1) {
+                    int total = 0;
+                    for (int j = 0; j < serialsData.get(i).getNumberSeason(); j++) {
+                        total += serialsData.get(i).getSeasons().get(j).getDuration();
+                    }
+                    duration.put(serialsData.get(i).getTitle(), total);
+                }
+            }
+        }
+        ArrayList<String> query = new ArrayList<String>();
+        Map<String, Integer> sortedLongest;
+        // sortez map-ul in functie de sortType
+        if (sortType.equals("desc")) {
+            Map<String, Integer> sortedAlfa =
+                    duration.entrySet().stream()
+                            .sorted(Map.Entry.comparingByKey(Comparator.reverseOrder()))
+                            .limit(duration.size())
+                            .collect(Collectors.toMap(
+                                    Map.Entry::getKey, Map.Entry::getValue,
+                                    (e1, e2) -> e1, LinkedHashMap::new));
+
+            sortedLongest =
+                    sortedAlfa.entrySet().stream()
+                            .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
+                            .limit(number)
+                            .collect(Collectors.toMap(
+                                    Map.Entry::getKey, Map.Entry::getValue,
+                                    (e1, e2) -> e1, LinkedHashMap::new));
+        } else {
+            Map<String, Integer> sortedAlfa =
+                    duration.entrySet().stream()
+                            .sorted(Map.Entry.comparingByKey(Comparator.naturalOrder()))
+                            .limit(duration.size())
+                            .collect(Collectors.toMap(
+                                    Map.Entry::getKey, Map.Entry::getValue,
+                                    (e1, e2) -> e1, LinkedHashMap::new));
+
+            sortedLongest =
+                    sortedAlfa.entrySet().stream()
+                            .sorted(Map.Entry.comparingByValue(Comparator.naturalOrder()))
+                            .limit(number)
+                            .collect(Collectors.toMap(
+                                    Map.Entry::getKey, Map.Entry::getValue,
+                                    (e1, e2) -> e1, LinkedHashMap::new));
+        }
+        for (String name : sortedLongest.keySet()) {
+            query.add(name);
+        }
+        return "Query result: " + query;
+    }
+
+    /**
+     * Most viewed query
+     */
+
+    public String mostViewed(final int number, final String sortType,
+                             final String objectType, final List<String> year,
+                             final List<String> genres) {
+        Map<String, Integer> viewedNumber = new HashMap<String, Integer>();
+        for (UserInputData user : usersData) {
+            // pentru fiecare user parcurg history-ul acestuia si calculez numarul
+            // total de vizionari pentru fiecare video in parte
+            for (String name : user.getHistory().keySet()) {
+                if (objectType.equals("movies")) {
+                    for (int i = 0; i < moviesData.size(); i++) {
+                        if (name.equals(moviesData.get(i).getTitle())) {
+                            int cod = 1;
+                            if (genres.get(0) != null) {
+                                for (String genre1 : genres) {
+                                    int found = 0;
+                                    for (String genre2 : moviesData.get(i).getGenres()) {
+                                        if (genre1.equals(genre2)) {
+                                            found = 1;
+                                        }
+                                    }
+                                    if (found == 0) {
+                                        cod = 0;
+                                    }
+                                }
+                            }
+                            if (year.get(0) != null) {
+                                if (Integer.parseInt(year.get(0).toString())
+                                        != moviesData.get(i).getYear()) {
+                                    cod = 0;
+                                }
+                            }
+                            if (cod == 1) {
+                                int num = user.getHistory().get(name);
+                                if (viewedNumber.get(name) != null) {
+                                    Integer value = viewedNumber.get(name);
+                                    num += value;
+                                }
+                                viewedNumber.put(name, num);
+                            }
+                        }
+                    }
+                } else {
+                    for (int i = 0; i < serialsData.size(); i++) {
+                        if (name.equals(serialsData.get(i).getTitle())) {
+                            int cod = 1;
+                            if (genres.get(0) != null) {
+                                for (String genre1 : genres) {
+                                    int found = 0;
+                                    for (String genre2 : serialsData.get(i).getGenres()) {
+                                        if (genre1.equals(genre2)) {
+                                            found = 1;
+                                        }
+                                    }
+                                    if (found == 0) {
+                                        cod = 0;
+                                    }
+                                }
+                            }
+                            if (year.get(0) != null) {
+                                if (Integer.parseInt(year.get(0).toString())
+                                        != serialsData.get(i).getYear()) {
+                                    cod = 0;
+                                }
+                            }
+                            if (cod == 1) {
+                                int num = user.getHistory().get(name);
+                                if (viewedNumber.get(name) != null) {
+                                    Integer value = viewedNumber.get(name);
+                                    num += value;
+                                }
+                                viewedNumber.put(name, num);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Map<String, Integer> sortedViews;
+        // sortez in functie de sortType
+        if (sortType.equals("desc")) {
+            Map<String, Integer> sortedAlfa =
+                    viewedNumber.entrySet().stream()
+                            .sorted(Map.Entry.comparingByKey(Comparator.reverseOrder()))
+                            .limit(viewedNumber.size())
+                            .collect(Collectors.toMap(
+                                    Map.Entry::getKey, Map.Entry::getValue,
+                                    (e1, e2) -> e1, LinkedHashMap::new));
+
+            sortedViews =
+                    sortedAlfa.entrySet().stream()
+                            .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
+                            .limit(number)
+                            .collect(Collectors.toMap(
+                                    Map.Entry::getKey, Map.Entry::getValue,
+                                    (e1, e2) -> e1, LinkedHashMap::new));
+        } else {
+            Map<String, Integer> sortedAlfa =
+                    viewedNumber.entrySet().stream()
+                            .sorted(Map.Entry.comparingByKey(Comparator.naturalOrder()))
+                            .limit(viewedNumber.size())
+                            .collect(Collectors.toMap(
+                                    Map.Entry::getKey, Map.Entry::getValue,
+                                    (e1, e2) -> e1, LinkedHashMap::new));
+
+            sortedViews =
+                    sortedAlfa.entrySet().stream()
+                            .sorted(Map.Entry.comparingByValue(Comparator.naturalOrder()))
+                            .limit(number)
+                            .collect(Collectors.toMap(
+                                    Map.Entry::getKey, Map.Entry::getValue,
+                                    (e1, e2) -> e1, LinkedHashMap::new));
+        }
+        ArrayList<String> query = new ArrayList<String>();
+        for (String name : sortedViews.keySet()) {
+            query.add(name);
+        }
+        return "Query result: " + query;
+    }
+
+    /**
+     * Number of ratings query
+     */
+
+    public String numberOfRatings(final int number, final String sortType) {
+        Map<String, Integer> numberRatings = new HashMap<String, Integer>();
+        for (String name : userRating.keySet()) {
+            // parcurg toti userii si calculez numarul de ratinguri dat de fiecare
+            Map<String, ArrayList<Video>> videos = userRating.get(name);
+            int contor = 0;
+            for (String video : videos.keySet()) {
+                contor++;
+            }
+            numberRatings.put(name, contor);
+        }
+        Map<String, Integer> sortedUsers;
+        // sortez in functie de sortType
+        if (sortType.equals("desc")) {
+            Map<String, Integer> sortedAlfa =
+                    numberRatings.entrySet().stream()
+                            .sorted(Map.Entry.comparingByKey(Comparator.reverseOrder()))
+                            .limit(numberRatings.size())
+                            .collect(Collectors.toMap(
+                                    Map.Entry::getKey, Map.Entry::getValue,
+                                    (e1, e2) -> e1, LinkedHashMap::new));
+
+            sortedUsers =
+                    sortedAlfa.entrySet().stream()
+                            .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
+                            .limit(number)
+                            .collect(Collectors.toMap(
+                                    Map.Entry::getKey, Map.Entry::getValue,
+                                    (e1, e2) -> e1, LinkedHashMap::new));
+        } else {
+            Map<String, Integer> sortedAlfa =
+                    numberRatings.entrySet().stream()
+                            .sorted(Map.Entry.comparingByKey(Comparator.naturalOrder()))
+                            .limit(numberRatings.size())
+                            .collect(Collectors.toMap(
+                                    Map.Entry::getKey, Map.Entry::getValue,
+                                    (e1, e2) -> e1, LinkedHashMap::new));
+
+            sortedUsers =
+                    sortedAlfa.entrySet().stream()
+                            .sorted(Map.Entry.comparingByValue(Comparator.naturalOrder()))
+                            .limit(number)
+                            .collect(Collectors.toMap(
+                                    Map.Entry::getKey, Map.Entry::getValue,
+                                    (e1, e2) -> e1, LinkedHashMap::new));
+        }
+        ArrayList<String> query = new ArrayList<String>();
+        for (String name : sortedUsers.keySet()) {
+            query.add(name);
+        }
+        return "Query result: " + query;
+    }
 }
